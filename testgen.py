@@ -130,7 +130,7 @@ for __t in (t for t in globals().values() if isinstance(type, type(t))):
 if __name__ == '__main__':
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
     k = "somekey"
-    for (i, seq) in enumerate(itertools.permutations(instances, 4)):
+    for (i, seq) in enumerate(sorted(set(itertools.permutations(instances, 4)))):
         state = State()
         print "// %s" % ', '.join(a.name for a in seq)
         print "void test_%d() {" % i
