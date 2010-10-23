@@ -4,8 +4,9 @@ import itertools
 
 class State(object):
 
-    def __init__(self):
+    def __init__(self, formatter):
         self.objects = {}
+        self.formatter = formatter
 
     def set(self, k, v, until=0):
         self.objects[k] = (until, v)
@@ -27,17 +28,13 @@ class State(object):
         return self.objects.get(k)
 
     def final(self, k):
-        if k in self.objects:
-            s = "exists as %s" % self.objects[k][1];
-        else:
-            s = "doesn't exist";
-        print "    // final state:  object %s" % s
+        self.formatter.finalState(self.objects.get(k))
 
     def flush(self, *whatever):
         self.objects = {}
 
     def error(self):
-        print "    // error"
+        self.formatter.error()
 
 class Action(object):
 
@@ -46,43 +43,34 @@ class Action(object):
         n = self.__class__.__name__
         return n[0].lower() + n[1:]
 
-    def c_code(self, k, state):
-        print '    %s("%s");' % (self.name, k)
-
 class Set(Action):
 
     def run(self, k, state):
-        self.c_code(k, state)
         state.set(k, '0')
 
 class Add(Action):
 
     def run(self, k, state):
-        self.c_code(k, state)
         state.add(k, '0')
 
 class Delete(Action):
 
     def run(self, k, state):
-        self.c_code(k, state)
         state.delete(k)
 
 class Delay(Action):
 
     def run(self, k, state):
-        print "    delay(expiry+1);"
         state.delete(k, True)
 
 class Flush(Action):
 
     def run(self, k, state):
-        self.c_code(k, state)
         state.flush(k, True)
 
 class Append(Action):
 
     def run(self, k, state):
-        self.c_code(k, state)
         val = state.get(k)
         if val:
             exp, v = val
@@ -127,21 +115,63 @@ for __t in (t for t in globals().values() if isinstance(type, type(t))):
     if Action in __t.__mro__ and __t != Action:
         actions.append(__t)
 
-if __name__ == '__main__':
-    instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
-    k = "somekey"
-    tests = set(itertools.permutations(instances, 4))
-    for (i, seq) in enumerate(sorted(tests)):
-        state = State()
-        print "// %s" % ', '.join(a.name for a in seq)
-        print "void test_%d() {" % i
-        for a in seq:
-            a.run(k, state)
-        state.final(k)
+class CFormatter(object):
+
+    def finalState(self, val):
+        if val:
+            s = "exists as %s" % val[1];
+        else:
+            s = "doesn't exist"
+        print "    // final state:  object %s" % s
+
+    def error(self):
+        print "    // error"
+
+    def startSequence(self, seq):
+        print "void %s() {" % self.testName(seq)
+
+    def endSequence(self, seq):
         print "}"
         print ""
 
-    print "int main(int argc, char **argv) {"
-    for (i, seq) in enumerate(sorted(tests)):
-        print "    test_%d();" % i
-    print "}"
+    def startAction(self, action, k):
+        if isinstance(action, Delay):
+            print "    delay(expiry+1);"
+        elif isinstance(action, Flush):
+            print "    flush();"
+        else:
+            print '    %s("%s");' % (action.name, k)
+
+    def endAction(self, action, k):
+        pass
+
+    def preSuite(self, seq):
+        print '#include "testsuite.h"'
+        print ""
+
+    def postSuite(self, seq):
+        print "int main(int argc, char **argv) {"
+        for seq in sorted(tests):
+            print "    %s();" % self.testName(seq)
+        print "}"
+
+    def testName(self, seq):
+        return 'test_' + '_'.join(a.name for a in seq)
+
+if __name__ == '__main__':
+    instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
+    k = "somekey"
+    formatter = CFormatter()
+    tests = set(itertools.permutations(instances, 4))
+    formatter.preSuite(tests)
+    for seq in sorted(tests):
+        state = State(formatter)
+        formatter.startSequence(seq)
+        for a in seq:
+            formatter.startAction(a, k)
+            a.run(k, state)
+            formatter.endAction(a, k)
+        state.final(k)
+        formatter.endSequence(seq)
+
+    formatter.postSuite(tests)
