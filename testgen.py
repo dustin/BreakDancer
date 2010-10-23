@@ -184,7 +184,7 @@ engine_test_t* get_tests(void) {
                 ', '.join(a.name for a in seq),
                 self.testName(seq))
 
-        print """    {NULL, NULL, NULL, NULL, NULL}
+        print """        {NULL, NULL, NULL, NULL, NULL}
     };
     return tests;
 }"""
