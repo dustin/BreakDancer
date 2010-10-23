@@ -141,7 +141,7 @@ class CFormatter(object):
         else:
             print '    %s();' % (action.name)
 
-    def endAction(self, action, errored):
+    def endAction(self, action, value, errored):
         pass
 
     def preSuite(self, seq):
@@ -166,11 +166,12 @@ class EngineTestAppFormatter(CFormatter):
 
     def startAction(self, action):
         if isinstance(action, Delay):
-            print "    testHarness.time_travel(expiry+1);"
+            s = "    testHarness.time_travel(expiry+1);"
         elif isinstance(action, Flush):
-            print "    flush(h, h1);"
+            s = "    flush(h, h1);"
         else:
-            print '    %s(h, h1);' % (action.name)
+            s = '    %s(h, h1);' % (action.name)
+        print s
 
     def postSuite(self, seq):
         print """MEMCACHED_PUBLIC_API
@@ -194,11 +195,16 @@ engine_test_t* get_tests(void) {
         else:
             print '    assertNotExists(h, h1);'
 
-    def endAction(self, action, errored):
-        if errored:
-            print "    assertHasError();"
+    def endAction(self, action, value, errored):
+        if value:
+            vs = ' // value is "%s"' % value[1]
         else:
-            print "    assertHasNoError();"
+            vs = ' // value is not defined'
+
+        if errored:
+            print "    assertHasError();" + vs
+        else:
+            print "    assertHasNoError();" + vs
 
 
 if __name__ == '__main__':
@@ -213,7 +219,7 @@ if __name__ == '__main__':
             state.starting()
             formatter.startAction(a)
             a.run(state)
-            formatter.endAction(a, state.errored)
+            formatter.endAction(a, state.get(seq[0].key), state.errored)
         formatter.finalState(state.get(seq[0].key))
         formatter.endSequence(seq)
 
