@@ -38,6 +38,8 @@ class State(object):
 
 class Action(object):
 
+    key = 'testkey'
+
     @property
     def name(self):
         n = self.__class__.__name__
@@ -45,43 +47,43 @@ class Action(object):
 
 class Set(Action):
 
-    def run(self, k, state):
-        state.set(k, '0')
+    def run(self, state):
+        state.set(self.key, '0')
 
 class Add(Action):
 
-    def run(self, k, state):
-        state.add(k, '0')
+    def run(self, state):
+        state.add(self.key, '0')
 
 class Delete(Action):
 
-    def run(self, k, state):
-        state.delete(k)
+    def run(self, state):
+        state.delete(self.key)
 
 class Delay(Action):
 
-    def run(self, k, state):
-        state.delete(k, True)
+    def run(self, state):
+        state.delete(self.key, True)
 
 class Flush(Action):
 
-    def run(self, k, state):
-        state.flush(k, True)
+    def run(self, state):
+        state.flush()
 
 class Append(Action):
 
-    def run(self, k, state):
-        val = state.get(k)
+    def run(self, state):
+        val = state.get(self.key)
         if val:
             exp, v = val
             try:
-                state.set(k, self.transform(v), exp)
+                state.set(self.key, self.transform(v), exp)
             except:
                 state.error()
         else:
-            self.missing(k, state)
+            self.missing(state)
 
-    def missing(self, k, state):
+    def missing(self, state):
         state.error()
 
     def transform(self, v):
@@ -104,8 +106,8 @@ class Decr(Append):
 
 class IncrWithDefault(Incr):
 
-    def missing(self, k, state):
-        state.set(k, self.transform('0'))
+    def missing(self, state):
+        state.set(self.key, self.transform('0'))
 
 class DecrWithDefault(IncrWithDefault):
     pass
@@ -134,15 +136,15 @@ class CFormatter(object):
         print "}"
         print ""
 
-    def startAction(self, action, k):
+    def startAction(self, action):
         if isinstance(action, Delay):
             print "    delay(expiry+1);"
         elif isinstance(action, Flush):
             print "    flush();"
         else:
-            print '    %s("%s");' % (action.name, k)
+            print '    %s();' % (action.name)
 
-    def endAction(self, action, k):
+    def endAction(self, action):
         pass
 
     def preSuite(self, seq):
@@ -168,10 +170,10 @@ if __name__ == '__main__':
         state = State(formatter)
         formatter.startSequence(seq)
         for a in seq:
-            formatter.startAction(a, k)
-            a.run(k, state)
-            formatter.endAction(a, k)
-        state.final(k)
+            formatter.startAction(a)
+            a.run(state)
+            formatter.endAction(a)
+        state.final(seq[0].key)
         formatter.endSequence(seq)
 
     formatter.postSuite(tests)
