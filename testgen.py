@@ -28,7 +28,7 @@ class State(object):
 
     def final(self, k):
         if k in self.objects:
-            s = "exists";
+            s = "exists as %s" % self.objects[k][1];
         else:
             s = "doesn't exist";
         print "    // final state:  object %s" % s
@@ -59,7 +59,7 @@ class Add(Action):
 
     def run(self, k, state):
         self.c_code(k, state)
-        state.add(k, 'val')
+        state.add(k, '0')
 
 class Delete(Action):
 
@@ -70,7 +70,7 @@ class Delete(Action):
 class Delay(Action):
 
     def run(self, k, state):
-        print "    // sleep(expiry+1);"
+        print "    sleep(expiry+1);"
         state.delete(k, True)
 
 class Flush(Action):
@@ -114,8 +114,7 @@ class Decr(Append):
     def transform(self, v):
         return str(int(v) - 1)
 
-class IncrWithDefault(Append):
-    pass
+class IncrWithDefault(Incr):
 
     def missing(self, k, state):
         state.set(k, self.transform('0'))
