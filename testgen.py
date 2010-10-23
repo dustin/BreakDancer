@@ -160,10 +160,50 @@ class CFormatter(object):
     def testName(self, seq):
         return 'test_' + '_'.join(a.name for a in seq)
 
+class EngineTestAppFormatter(CFormatter):
+
+    def startSequence(self, seq):
+        f = "static enum test_result %s" % self.testName(seq)
+        print ("%s(ENGINE_HANDLE *h,\n%sENGINE_HANDLE_V1 *h1) {"
+               % (f, " " * (len(f) + 1)))
+
+    def startAction(self, action):
+        if isinstance(action, Delay):
+            print "    testHarness.time_travel(expiry+1);"
+        elif isinstance(action, Flush):
+            print "    flush(h, h1);"
+        else:
+            print '    %s(h, h1);' % (action.name)
+
+    def postSuite(self, seq):
+        print """MEMCACHED_PUBLIC_API
+engine_test_t* get_tests(void) {
+
+    static engine_test_t tests[]  = {
+"""
+        for seq in sorted(tests):
+            print '        {"%s",\n         %s,\n         NULL, teardown, NULL},' % (
+                ', '.join(a.name for a in seq),
+                self.testName(seq))
+
+        print """    {NULL, NULL, NULL, NULL, NULL}
+    };
+    return tests;
+}"""
+
+    def finalState(self, val):
+        if val:
+            print '    checkValue(h, h1, value, "%s");' % val[1]
+        else:
+            print '    assertNotExists(h, h1);'
+
+    def error(self):
+        print "    assertHasError();"
+
+
 if __name__ == '__main__':
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
-    k = "somekey"
-    formatter = CFormatter()
+    formatter = EngineTestAppFormatter()
     tests = set(itertools.permutations(instances, 4))
     formatter.preSuite(tests)
     for seq in sorted(tests):
