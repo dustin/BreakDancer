@@ -145,7 +145,7 @@ class CFormatter(object):
         pass
 
     def preSuite(self, seq):
-        print '#include "testsuite.h"'
+        print '#include "suite_stubs.h"'
         print ""
 
     def postSuite(self, seq):
@@ -169,6 +169,8 @@ class EngineTestAppFormatter(CFormatter):
             s = "    testHarness.time_travel(expiry+1);"
         elif isinstance(action, Flush):
             s = "    flush(h, h1);"
+        elif isinstance(action, Delete):
+            s = '    del(h, h1);'
         else:
             s = '    %s(h, h1);' % (action.name)
         print s
@@ -191,7 +193,7 @@ engine_test_t* get_tests(void) {
 
     def finalState(self, val):
         if val:
-            print '    checkValue(h, h1, value, "%s");' % val[1]
+            print '    checkValue(h, h1, "%s");' % val[1]
         else:
             print '    assertNotExists(h, h1);'
 
@@ -205,7 +207,7 @@ engine_test_t* get_tests(void) {
             print "    assertHasError();" + vs
         else:
             print "    assertHasNoError();" + vs
-
+        print "    return SUCCESS;"
 
 if __name__ == '__main__':
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
