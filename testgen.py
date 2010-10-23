@@ -4,9 +4,12 @@ import itertools
 
 class State(object):
 
-    def __init__(self, formatter):
+    def __init__(self):
         self.objects = {}
-        self.formatter = formatter
+        self.errored = False
+
+    def starting(self):
+        self.errored = False
 
     def set(self, k, v, until=0):
         self.objects[k] = (until, v)
@@ -27,14 +30,11 @@ class State(object):
     def get(self, k):
         return self.objects.get(k)
 
-    def final(self, k):
-        self.formatter.finalState(self.objects.get(k))
-
     def flush(self, *whatever):
         self.objects = {}
 
     def error(self):
-        self.formatter.error()
+        self.errored = True
 
 class Action(object):
 
@@ -126,9 +126,6 @@ class CFormatter(object):
             s = "doesn't exist"
         print "    // final state:  object %s" % s
 
-    def error(self):
-        print "    // error"
-
     def startSequence(self, seq):
         print "void %s() {" % self.testName(seq)
 
@@ -144,7 +141,7 @@ class CFormatter(object):
         else:
             print '    %s();' % (action.name)
 
-    def endAction(self, action):
+    def endAction(self, action, errored):
         pass
 
     def preSuite(self, seq):
@@ -197,8 +194,11 @@ engine_test_t* get_tests(void) {
         else:
             print '    assertNotExists(h, h1);'
 
-    def error(self):
-        print "    assertHasError();"
+    def endAction(self, action, errored):
+        if errored:
+            print "    assertHasError();"
+        else:
+            print "    assertHasNoError();"
 
 
 if __name__ == '__main__':
@@ -207,13 +207,14 @@ if __name__ == '__main__':
     tests = set(itertools.permutations(instances, 4))
     formatter.preSuite(tests)
     for seq in sorted(tests):
-        state = State(formatter)
+        state = State()
         formatter.startSequence(seq)
         for a in seq:
+            state.starting()
             formatter.startAction(a)
             a.run(state)
-            formatter.endAction(a)
-        state.final(seq[0].key)
+            formatter.endAction(a, state.errored)
+        formatter.finalState(state.get(seq[0].key))
         formatter.endSequence(seq)
 
     formatter.postSuite(tests)
