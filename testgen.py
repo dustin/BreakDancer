@@ -70,7 +70,7 @@ class Delete(Action):
 class Delay(Action):
 
     def run(self, k, state):
-        print "    sleep(expiry+1);"
+        print "    delay(expiry+1);"
         state.delete(k, True)
 
 class Flush(Action):
@@ -130,7 +130,8 @@ for __t in (t for t in globals().values() if isinstance(type, type(t))):
 if __name__ == '__main__':
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
     k = "somekey"
-    for (i, seq) in enumerate(sorted(set(itertools.permutations(instances, 4)))):
+    tests = set(itertools.permutations(instances, 4))
+    for (i, seq) in enumerate(sorted(tests)):
         state = State()
         print "// %s" % ', '.join(a.name for a in seq)
         print "void test_%d() {" % i
@@ -139,3 +140,8 @@ if __name__ == '__main__':
         state.final(k)
         print "}"
         print ""
+
+    print "int main(int argc, char **argv) {"
+    for (i, seq) in enumerate(sorted(tests)):
+        print "    test_%d();" % i
+    print "}"
