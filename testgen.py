@@ -102,15 +102,17 @@ class Incr(Append):
 class Decr(Append):
 
     def transform(self, v):
-        return str(int(v) - 1)
+        return str(max(int(v) - 1, 0))
 
 class IncrWithDefault(Incr):
 
     def missing(self, state):
-        state.set(self.key, self.transform('0'))
+        state.set(self.key, '0')
 
 class DecrWithDefault(IncrWithDefault):
-    pass
+
+    def transform(self, v):
+        return str(max(int(v) - 1, 0))
 
 actions = []
 for __t in (t for t in globals().values() if isinstance(type, type(t))):
@@ -166,7 +168,7 @@ class EngineTestAppFormatter(CFormatter):
 
     def startAction(self, action):
         if isinstance(action, Delay):
-            s = "    testHarness.time_travel(expiry+1);"
+            s = "    delay(expiry+1);"
         elif isinstance(action, Flush):
             s = "    flush(h, h1);"
         elif isinstance(action, Delete):
@@ -196,6 +198,7 @@ engine_test_t* get_tests(void) {
             print '    checkValue(h, h1, "%s");' % val[1]
         else:
             print '    assertNotExists(h, h1);'
+        print "    return SUCCESS;"
 
     def endAction(self, action, value, errored):
         if value:
@@ -207,7 +210,6 @@ engine_test_t* get_tests(void) {
             print "    assertHasError();" + vs
         else:
             print "    assertHasNoError();" + vs
-        print "    return SUCCESS;"
 
 if __name__ == '__main__':
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
