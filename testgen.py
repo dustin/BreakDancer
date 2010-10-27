@@ -173,7 +173,27 @@ for __t in (t for t in globals().values() if isinstance(type, type(t))):
     if Action in __t.__mro__ and __t != Action:
         actions.append(__t)
 
-class EngineTestAppFormatter(object):
+class Driver(object):
+
+    def preSuite(self, seq):
+        pass
+
+    def startSequence(self, seq):
+        pass
+
+    def startAction(self, action):
+        pass
+
+    def endAction(self, action, value, errored):
+        pass
+
+    def endSequence(self, seq):
+        pass
+
+    def postSuite(self, seq):
+        pass
+
+class EngineTestAppFormatter(Driver):
 
     def endSequence(self, seq):
         print "}"
