@@ -97,8 +97,11 @@ def runTest(actions, driver, duplicates=3, length=4):
             driver.startAction(a)
             haserror = not all(p(k, state) for p in a.preconditions)
             if not haserror:
-                a.effect(k, state)
-                haserror = not all(p(k, state) for p in a.postconditions)
+                try:
+                    a.effect(k, state)
+                    haserror = not all(p(k, state) for p in a.postconditions)
+                except:
+                    haserror = True
             driver.endAction(a, k, state, haserror)
         driver.endSequence(seq, k, state)
     driver.postSuite(tests)
