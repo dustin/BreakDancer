@@ -118,13 +118,13 @@ class Append(Action):
 
     preconditions = [ExistsCondition()]
     effect = AppendEffect()
-    preconditions = [ExistsCondition()]
+    postconditions = [ExistsCondition()]
 
 class Prepend(Action):
 
     preconditions = [ExistsCondition()]
     effect = PrependEffect()
-    preconditions = [ExistsCondition()]
+    postconditions = [ExistsCondition()]
 
 class Incr(Action):
 
