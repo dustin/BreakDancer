@@ -2,41 +2,103 @@
 
 import itertools
 
-class State(object):
+######################################################################
+# Conditions
+######################################################################
 
-    def __init__(self):
-        self.objects = {}
-        self.errored = False
+class Condition(object):
+    pass
 
-    def starting(self):
-        self.errored = False
+class ExistsCondition(object):
 
-    def set(self, k, v, until=0):
-        self.objects[k] = (until, v)
+    def __call__(self, k, state):
+        return k in state
 
-    def delete(self, k, force=False):
-        if k not in self.objects:
-            if not force:
-                self.error()
+class ExistsAsNumber(object):
+
+    def __call__(self, k, state):
+        try:
+            int(state[k])
+            return True
+        except:
+            return False
+
+class MaybeExistsAsNumber(ExistsAsNumber):
+
+    def __call__(self, k, state):
+        return k not in state or ExistsAsNumber.__call__(self, k, state)
+
+class DoesNotExistCondition(object):
+
+    def __call__(self, k, state):
+        return k not in state
+
+class NothingExistsCondition(object):
+
+    def __call__(self, k, state):
+        return not bool(state)
+
+######################################################################
+# Effects
+######################################################################
+
+class Effect(object):
+    pass
+
+class StoreEffect(Effect):
+
+    def __init__(self, v='0'):
+        self.v = v
+
+    def __call__(self, k, state):
+        state[k] = self.v
+
+class DeleteEffect(Effect):
+
+    def __call__(self, k, state):
+        del state[k]
+
+class FlushEffect(Effect):
+
+    def __call__(self, k, state):
+        state.clear()
+
+class AppendEffect(Effect):
+
+    suffix = '-suffix'
+
+    def __call__(self, k, state):
+        state[k] = state[k] + self.suffix
+
+class PrependEffect(Effect):
+
+    prefix = 'prefix-'
+
+    def __call__(self, k, state):
+        state[k] = self.prefix + state[k]
+
+class ArithmeticEffect(Effect):
+
+    default = '0'
+
+    def __init__(self, by=1):
+        self.by = by
+
+    def __call__(self, k, state):
+        if k in state:
+            state[k] = str(max(0, int(state[k]) + self.by))
         else:
-            del self.objects[k]
+            state[k] = self.default
 
-    def add(self, k, v, until=0):
-        if k in self.objects:
-            self.error()
-        else:
-            self.set(k, v, until)
-
-    def get(self, k):
-        return self.objects.get(k)
-
-    def flush(self, *whatever):
-        self.objects = {}
-
-    def error(self):
-        self.errored = True
+######################################################################
+# Actions
+######################################################################
 
 class Action(object):
+
+    preconditions = []
+    effect = None
+    postconditions = []
 
     key = 'testkey'
 
@@ -47,72 +109,64 @@ class Action(object):
 
 class Set(Action):
 
-    def run(self, state):
-        state.set(self.key, '0')
+    effect = StoreEffect()
+    postconditions = [ExistsCondition()]
 
 class Add(Action):
 
-    def run(self, state):
-        state.add(self.key, '0')
+    preconditions = [DoesNotExistCondition()]
+    effect = StoreEffect()
+    postconditions = [ExistsCondition()]
 
 class Delete(Action):
 
-    def run(self, state):
-        state.delete(self.key)
-
-class Delay(Action):
-
-    def run(self, state):
-        state.delete(self.key, True)
+    preconditions = [ExistsCondition()]
+    effect = DeleteEffect()
+    postconditions = [DoesNotExistCondition()]
 
 class Flush(Action):
 
-    def run(self, state):
-        state.flush()
+    effect = FlushEffect()
+    postconditions = [NothingExistsCondition()]
+
+class Delay(Flush):
+    pass
 
 class Append(Action):
 
-    def run(self, state):
-        val = state.get(self.key)
-        if val:
-            exp, v = val
-            try:
-                state.set(self.key, self.transform(v), exp)
-            except:
-                state.error()
-        else:
-            self.missing(state)
+    preconditions = [ExistsCondition()]
+    effect = AppendEffect()
+    preconditions = [ExistsCondition()]
 
-    def missing(self, state):
-        state.error()
+class Prepend(Action):
 
-    def transform(self, v):
-        return v + "-suffix"
+    preconditions = [ExistsCondition()]
+    effect = PrependEffect()
+    preconditions = [ExistsCondition()]
 
-class Prepend(Append):
+class Incr(Action):
 
-    def transform(self, v):
-        return "prefix-" + v
+    preconditions = [ExistsAsNumber()]
+    effect = ArithmeticEffect(1)
+    postconditions = [ExistsAsNumber()]
 
-class Incr(Append):
+class Decr(Action):
 
-    def transform(self, v):
-        return str(int(v) + 1)
+    preconditions = [ExistsAsNumber()]
+    effect = ArithmeticEffect(-1)
+    postconditions = [ExistsAsNumber()]
 
-class Decr(Append):
+class IncrWithDefault(Action):
 
-    def transform(self, v):
-        return str(max(int(v) - 1, 0))
+    preconditions = [MaybeExistsAsNumber()]
+    effect = ArithmeticEffect(1)
+    postconditions = [ExistsAsNumber()]
 
-class IncrWithDefault(Incr):
+class DecrWithDefault(Action):
 
-    def missing(self, state):
-        state.set(self.key, '0')
-
-class DecrWithDefault(IncrWithDefault):
-
-    def transform(self, v):
-        return str(max(int(v) - 1, 0))
+    preconditions = [MaybeExistsAsNumber()]
+    effect = ArithmeticEffect(-1)
+    postconditions = [ExistsAsNumber()]
 
 actions = []
 for __t in (t for t in globals().values() if isinstance(type, type(t))):
@@ -123,7 +177,7 @@ class CFormatter(object):
 
     def finalState(self, val):
         if val:
-            s = "exists as %s" % val[1];
+            s = "exists as %s" % val
         else:
             s = "doesn't exist"
         print "    // final state:  object %s" % s
@@ -195,14 +249,14 @@ engine_test_t* get_tests(void) {
 
     def finalState(self, val):
         if val:
-            print '    checkValue(h, h1, "%s");' % val[1]
+            print '    checkValue(h, h1, "%s");' % val
         else:
             print '    assertNotExists(h, h1);'
         print "    return SUCCESS;"
 
     def endAction(self, action, value, errored):
         if value:
-            vs = ' // value is "%s"' % value[1]
+            vs = ' // value is "%s"' % value
         else:
             vs = ' // value is not defined'
 
@@ -216,15 +270,18 @@ if __name__ == '__main__':
     formatter = EngineTestAppFormatter()
     tests = set(itertools.permutations(instances, 4))
     formatter.preSuite(tests)
+    k = 'testkey'
     for seq in sorted(tests):
-        state = State()
+        state = {}
         formatter.startSequence(seq)
         for a in seq:
-            state.starting()
             formatter.startAction(a)
-            a.run(state)
-            formatter.endAction(a, state.get(seq[0].key), state.errored)
-        formatter.finalState(state.get(seq[0].key))
+            haserror = not all(p(k, state) for p in a.preconditions)
+            if not haserror:
+                a.effect(k, state)
+                haserror = not all(p(k, state) for p in a.postconditions)
+            formatter.endAction(a, state.get(k), haserror)
+        formatter.finalState(state.get(k))
         formatter.endSequence(seq)
 
     formatter.postSuite(tests)
