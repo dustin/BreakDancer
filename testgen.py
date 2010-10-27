@@ -173,47 +173,18 @@ for __t in (t for t in globals().values() if isinstance(type, type(t))):
     if Action in __t.__mro__ and __t != Action:
         actions.append(__t)
 
-class CFormatter(object):
-
-    def finalState(self, val):
-        if val:
-            s = "exists as %s" % val
-        else:
-            s = "doesn't exist"
-        print "    // final state:  object %s" % s
-
-    def startSequence(self, seq):
-        print "void %s() {" % self.testName(seq)
+class EngineTestAppFormatter(object):
 
     def endSequence(self, seq):
         print "}"
         print ""
 
-    def startAction(self, action):
-        if isinstance(action, Delay):
-            print "    delay(expiry+1);"
-        elif isinstance(action, Flush):
-            print "    flush();"
-        else:
-            print '    %s();' % (action.name)
-
-    def endAction(self, action, value, errored):
-        pass
-
     def preSuite(self, seq):
         print '#include "suite_stubs.h"'
         print ""
 
-    def postSuite(self, seq):
-        print "int main(int argc, char **argv) {"
-        for seq in sorted(tests):
-            print "    %s();" % self.testName(seq)
-        print "}"
-
     def testName(self, seq):
         return 'test_' + '_'.join(a.name for a in seq)
-
-class EngineTestAppFormatter(CFormatter):
 
     def startSequence(self, seq):
         f = "static enum test_result %s" % self.testName(seq)
