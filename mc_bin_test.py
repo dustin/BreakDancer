@@ -10,6 +10,7 @@ from testgen import Condition, Effect, Action, Driver
 
 import mc_bin_client
 
+TESTKEY = 'testkey'
 EXPTIME = 2
 
 ######################################################################
@@ -18,13 +19,13 @@ EXPTIME = 2
 
 class ExistsCondition(Condition):
 
-    def __call__(self, k, state):
-        return k in state[1]
+    def __call__(self, state):
+        return TESTKEY in state[1]
 
 class DoesNotExistCondition(Condition):
 
-    def __call__(self, k, state):
-        return k not in state[1]
+    def __call__(self, state):
+        return TESTKEY not in state[1]
 
 ######################################################################
 # Effects
@@ -36,19 +37,19 @@ class StoreEffect(Effect):
         self.v = v
         self.method = method
 
-    def __call__(self, k, state):
-        state[1][k] = self.v
-        getattr(state[0], self.method)(k, EXPTIME, 0, self.v)
+    def __call__(self, state):
+        state[1][TESTKEY] = self.v
+        getattr(state[0], self.method)(TESTKEY, EXPTIME, 0, self.v)
 
 class DeleteEffect(Effect):
 
-    def __call__(self, k, state):
-        del state[1][k]
-        state[0].delete(k)
+    def __call__(self, state):
+        del state[1][TESTKEY]
+        state[0].delete(TESTKEY)
 
 class DelayEffect(Effect):
 
-    def __call__(self, k, state):
+    def __call__(self, state):
         state[1].clear()
         time.sleep(EXPTIME+1)
 
@@ -56,17 +57,17 @@ class AppendEffect(Effect):
 
     suffix = '-suffix'
 
-    def __call__(self, k, state):
-        state[1][k] = state[1][k] + self.suffix
-        state[0].set(k, EXPTIME, 0, state[1][k])
+    def __call__(self, state):
+        state[1][TESTKEY] = state[1][TESTKEY] + self.suffix
+        state[0].set(TESTKEY, EXPTIME, 0, state[1][TESTKEY])
 
 class PrependEffect(Effect):
 
     prefix = 'prefix-'
 
-    def __call__(self, k, state):
-        state[1][k] = self.prefix + state[1][k]
-        state[0].set(k, EXPTIME, 0, state[1][k])
+    def __call__(self, state):
+        state[1][TESTKEY] = self.prefix + state[1][TESTKEY]
+        state[0].set(TESTKEY, EXPTIME, 0, state[1][TESTKEY])
 
 ######################################################################
 # Actions
@@ -120,10 +121,10 @@ class MCDriver(Driver):
     def startSequence(self, seq):
         print "Running", ', '.join(a.name for a in seq)
 
-    def endSequence(self, seq, k, state):
-        value = state[1].get(k, None)
+    def endSequence(self, seq, state):
+        value = state[1].get(TESTKEY, None)
         try:
-            inState = self.state[0].get(k)[-1]
+            inState = self.state[0].get(TESTKEY)[-1]
         except:
             inState = None
 

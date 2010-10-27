@@ -3,37 +3,39 @@
 import testgen
 from testgen import Condition, Effect, Action, Driver
 
+TESTKEY = 'testkey'
+
 ######################################################################
 # Conditions
 ######################################################################
 
 class ExistsCondition(Condition):
 
-    def __call__(self, k, state):
-        return k in state
+    def __call__(self, state):
+        return TESTKEY in state
 
 class ExistsAsNumber(Condition):
 
-    def __call__(self, k, state):
+    def __call__(self, state):
         try:
-            int(state[k])
+            int(state[TESTKEY])
             return True
         except:
             return False
 
 class MaybeExistsAsNumber(ExistsAsNumber):
 
-    def __call__(self, k, state):
-        return k not in state or ExistsAsNumber.__call__(self, k, state)
+    def __call__(self, state):
+        return TESTKEY not in state or ExistsAsNumber.__call__(self, state)
 
 class DoesNotExistCondition(Condition):
 
-    def __call__(self, k, state):
-        return k not in state
+    def __call__(self, state):
+        return TESTKEY not in state
 
 class NothingExistsCondition(Condition):
 
-    def __call__(self, k, state):
+    def __call__(self, state):
         return not bool(state)
 
 ######################################################################
@@ -45,32 +47,32 @@ class StoreEffect(Effect):
     def __init__(self, v='0'):
         self.v = v
 
-    def __call__(self, k, state):
-        state[k] = self.v
+    def __call__(self, state):
+        state[TESTKEY] = self.v
 
 class DeleteEffect(Effect):
 
-    def __call__(self, k, state):
-        del state[k]
+    def __call__(self, state):
+        del state[TESTKEY]
 
 class FlushEffect(Effect):
 
-    def __call__(self, k, state):
+    def __call__(self, state):
         state.clear()
 
 class AppendEffect(Effect):
 
     suffix = '-suffix'
 
-    def __call__(self, k, state):
-        state[k] = state[k] + self.suffix
+    def __call__(self, state):
+        state[TESTKEY] = state[TESTKEY] + self.suffix
 
 class PrependEffect(Effect):
 
     prefix = 'prefix-'
 
-    def __call__(self, k, state):
-        state[k] = self.prefix + state[k]
+    def __call__(self, state):
+        state[TESTKEY] = self.prefix + state[TESTKEY]
 
 class ArithmeticEffect(Effect):
 
@@ -79,11 +81,11 @@ class ArithmeticEffect(Effect):
     def __init__(self, by=1):
         self.by = by
 
-    def __call__(self, k, state):
-        if k in state:
-            state[k] = str(max(0, int(state[k]) + self.by))
+    def __call__(self, state):
+        if TESTKEY in state:
+            state[TESTKEY] = str(max(0, int(state[TESTKEY]) + self.by))
         else:
-            state[k] = self.default
+            state[TESTKEY] = self.default
 
 ######################################################################
 # Actions
@@ -195,8 +197,8 @@ engine_test_t* get_tests(void) {
     return tests;
 }"""
 
-    def endSequence(self, seq, k, state):
-        val = state.get(k)
+    def endSequence(self, seq, state):
+        val = state.get(TESTKEY)
         if val:
             print '    checkValue(h, h1, "%s");' % val
         else:
@@ -205,8 +207,8 @@ engine_test_t* get_tests(void) {
         print "}"
         print ""
 
-    def endAction(self, action, k, state, errored):
-        value = state.get(k)
+    def endAction(self, action, state, errored):
+        value = state.get(TESTKEY)
         if value:
             vs = ' // value is "%s"' % value
         else:
