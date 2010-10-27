@@ -2,258 +2,88 @@
 
 import itertools
 
-######################################################################
-# Conditions
-######################################################################
-
 class Condition(object):
-    pass
+    """Something asserted to be true during the test.
 
-class ExistsCondition(object):
-
-    def __call__(self, k, state):
-        return k in state
-
-class ExistsAsNumber(object):
+    A given condition may be used as a precondition or a
+    postcondition."""
 
     def __call__(self, k, state):
-        try:
-            int(state[k])
-            return True
-        except:
-            return False
-
-class MaybeExistsAsNumber(ExistsAsNumber):
-
-    def __call__(self, k, state):
-        return k not in state or ExistsAsNumber.__call__(self, k, state)
-
-class DoesNotExistCondition(object):
-
-    def __call__(self, k, state):
-        return k not in state
-
-class NothingExistsCondition(object):
-
-    def __call__(self, k, state):
-        return not bool(state)
-
-######################################################################
-# Effects
-######################################################################
+        """Called with a key and a state.  True if the condition is met."""
+        return True
 
 class Effect(object):
-    pass
-
-class StoreEffect(Effect):
-
-    def __init__(self, v='0'):
-        self.v = v
+    """The affect an action will perform."""
 
     def __call__(self, k, state):
-        state[k] = self.v
+        """Called with a key and a state.
 
-class DeleteEffect(Effect):
-
-    def __call__(self, k, state):
-        del state[k]
-
-class FlushEffect(Effect):
-
-    def __call__(self, k, state):
-        state.clear()
-
-class AppendEffect(Effect):
-
-    suffix = '-suffix'
-
-    def __call__(self, k, state):
-        state[k] = state[k] + self.suffix
-
-class PrependEffect(Effect):
-
-    prefix = 'prefix-'
-
-    def __call__(self, k, state):
-        state[k] = self.prefix + state[k]
-
-class ArithmeticEffect(Effect):
-
-    default = '0'
-
-    def __init__(self, by=1):
-        self.by = by
-
-    def __call__(self, k, state):
-        if k in state:
-            state[k] = str(max(0, int(state[k]) + self.by))
-        else:
-            state[k] = self.default
-
-######################################################################
-# Actions
-######################################################################
+        The effect modifies the state as appropriate."""
 
 class Action(object):
+    """Actions are the operations that will be permuted into test cases.
+
+    Each action has a collection of preconditions and postconditions
+    that will be evaluated for checking input and output state for the
+    action.
+
+    Action.preconditions is the collection of conditions that must all
+    be true upon input to the action.  If any condition is not true,
+    the effect is not executed and the action state is considered
+    "errored."
+
+    Action.effect is the callable that is expected to alter the state
+    to satisfy the postconditions of the action.
+
+    Action.postconditions is the collection of conditions that must
+    all be true after the effect of the action completes.
+    """
 
     preconditions = []
     effect = None
     postconditions = []
 
-    key = 'testkey'
-
     @property
     def name(self):
+        """The name of this action (default derived from class name)"""
         n = self.__class__.__name__
         return n[0].lower() + n[1:]
 
-class Set(Action):
-
-    effect = StoreEffect()
-    postconditions = [ExistsCondition()]
-
-class Add(Action):
-
-    preconditions = [DoesNotExistCondition()]
-    effect = StoreEffect()
-    postconditions = [ExistsCondition()]
-
-class Delete(Action):
-
-    preconditions = [ExistsCondition()]
-    effect = DeleteEffect()
-    postconditions = [DoesNotExistCondition()]
-
-class Flush(Action):
-
-    effect = FlushEffect()
-    postconditions = [NothingExistsCondition()]
-
-class Delay(Flush):
-    pass
-
-class Append(Action):
-
-    preconditions = [ExistsCondition()]
-    effect = AppendEffect()
-    preconditions = [ExistsCondition()]
-
-class Prepend(Action):
-
-    preconditions = [ExistsCondition()]
-    effect = PrependEffect()
-    preconditions = [ExistsCondition()]
-
-class Incr(Action):
-
-    preconditions = [ExistsAsNumber()]
-    effect = ArithmeticEffect(1)
-    postconditions = [ExistsAsNumber()]
-
-class Decr(Action):
-
-    preconditions = [ExistsAsNumber()]
-    effect = ArithmeticEffect(-1)
-    postconditions = [ExistsAsNumber()]
-
-class IncrWithDefault(Action):
-
-    preconditions = [MaybeExistsAsNumber()]
-    effect = ArithmeticEffect(1)
-    postconditions = [ExistsAsNumber()]
-
-class DecrWithDefault(Action):
-
-    preconditions = [MaybeExistsAsNumber()]
-    effect = ArithmeticEffect(-1)
-    postconditions = [ExistsAsNumber()]
-
 class Driver(object):
+    """The driver "performs" the test."""
 
     def preSuite(self, seq):
-        pass
+        """Invoked with the sequence of tests before any are run."""
 
     def startSequence(self, seq):
-        pass
+        """Invoked with the sequence of actions in a single test
+        before it is performed."""
 
     def startAction(self, action):
-        pass
+        """Invoked when before starting an action."""
 
     def endAction(self, action, value, errored):
-        pass
+        """Invoked after the action is performed."""
 
     def endSequence(self, seq):
-        pass
+        """Invoked at the end of a sequence of tests."""
 
     def postSuite(self, seq):
-        pass
+        """Invoked with the sequence of tests after all of them are run."""
 
-class EngineTestAppDriver(Driver):
+def runTest(actions, driver, duplicates=3, length=4):
+    """Run a test with the given collection of actions and driver.
 
-    def endSequence(self, seq):
-        print "}"
-        print ""
+    The optional argument `duplicates' specifies how many times a
+    given action may be duplicated in a sequence.
 
-    def preSuite(self, seq):
-        print '#include "suite_stubs.h"'
-        print ""
+    The optional argument `length` specifies how long each test
+    sequence is.
+    """
 
-    def testName(self, seq):
-        return 'test_' + '_'.join(a.name for a in seq)
-
-    def startSequence(self, seq):
-        f = "static enum test_result %s" % self.testName(seq)
-        print ("%s(ENGINE_HANDLE *h,\n%sENGINE_HANDLE_V1 *h1) {"
-               % (f, " " * (len(f) + 1)))
-
-    def startAction(self, action):
-        if isinstance(action, Delay):
-            s = "    delay(expiry+1);"
-        elif isinstance(action, Flush):
-            s = "    flush(h, h1);"
-        elif isinstance(action, Delete):
-            s = '    del(h, h1);'
-        else:
-            s = '    %s(h, h1);' % (action.name)
-        print s
-
-    def postSuite(self, seq):
-        print """MEMCACHED_PUBLIC_API
-engine_test_t* get_tests(void) {
-
-    static engine_test_t tests[]  = {
-"""
-        for seq in sorted(seq):
-            print '        {"%s",\n         %s,\n         NULL, teardown, NULL},' % (
-                ', '.join(a.name for a in seq),
-                self.testName(seq))
-
-        print """        {NULL, NULL, NULL, NULL, NULL}
-    };
-    return tests;
-}"""
-
-    def finalState(self, val):
-        if val:
-            print '    checkValue(h, h1, "%s");' % val
-        else:
-            print '    assertNotExists(h, h1);'
-        print "    return SUCCESS;"
-
-    def endAction(self, action, value, errored):
-        if value:
-            vs = ' // value is "%s"' % value
-        else:
-            vs = ' // value is not defined'
-
-        if errored:
-            print "    assertHasError();" + vs
-        else:
-            print "    assertHasNoError();" + vs
-
-def runTest(actions, driver):
-    instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
-    tests = set(itertools.permutations(instances, 4))
+    instances = itertools.chain(*itertools.repeat([a() for a in actions],
+                                                  duplicates))
+    tests = set(itertools.permutations(instances, length))
     driver.preSuite(tests)
     k = 'testkey'
     for seq in sorted(tests):
@@ -271,11 +101,11 @@ def runTest(actions, driver):
     driver.postSuite(tests)
 
 def findActions(classes):
+    """Helper function to extract action subclasses from a collection
+    of classes."""
+
     actions = []
     for __t in (t for t in classes if isinstance(type, type(t))):
         if Action in __t.__mro__ and __t != Action:
             actions.append(__t)
     return actions
-
-if __name__ == '__main__':
-    runTest(findActions(globals().values()), EngineTestAppDriver())
