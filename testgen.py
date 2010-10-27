@@ -168,11 +168,6 @@ class DecrWithDefault(Action):
     effect = ArithmeticEffect(-1)
     postconditions = [ExistsAsNumber()]
 
-actions = []
-for __t in (t for t in globals().values() if isinstance(type, type(t))):
-    if Action in __t.__mro__ and __t != Action:
-        actions.append(__t)
-
 class Driver(object):
 
     def preSuite(self, seq):
@@ -193,7 +188,7 @@ class Driver(object):
     def postSuite(self, seq):
         pass
 
-class EngineTestAppFormatter(Driver):
+class EngineTestAppDriver(Driver):
 
     def endSequence(self, seq):
         print "}"
@@ -228,7 +223,7 @@ engine_test_t* get_tests(void) {
 
     static engine_test_t tests[]  = {
 """
-        for seq in sorted(tests):
+        for seq in sorted(seq):
             print '        {"%s",\n         %s,\n         NULL, teardown, NULL},' % (
                 ', '.join(a.name for a in seq),
                 self.testName(seq))
@@ -256,23 +251,31 @@ engine_test_t* get_tests(void) {
         else:
             print "    assertHasNoError();" + vs
 
-if __name__ == '__main__':
+def runTest(actions, driver):
     instances = itertools.chain(*itertools.repeat([a() for a in actions], 3))
-    formatter = EngineTestAppFormatter()
     tests = set(itertools.permutations(instances, 4))
-    formatter.preSuite(tests)
+    driver.preSuite(tests)
     k = 'testkey'
     for seq in sorted(tests):
         state = {}
-        formatter.startSequence(seq)
+        driver.startSequence(seq)
         for a in seq:
-            formatter.startAction(a)
+            driver.startAction(a)
             haserror = not all(p(k, state) for p in a.preconditions)
             if not haserror:
                 a.effect(k, state)
                 haserror = not all(p(k, state) for p in a.postconditions)
-            formatter.endAction(a, state.get(k), haserror)
-        formatter.finalState(state.get(k))
-        formatter.endSequence(seq)
+            driver.endAction(a, state.get(k), haserror)
+        driver.finalState(state.get(k))
+        driver.endSequence(seq)
+    driver.postSuite(tests)
 
-    formatter.postSuite(tests)
+def findActions(classes):
+    actions = []
+    for __t in (t for t in classes if isinstance(type, type(t))):
+        if Action in __t.__mro__ and __t != Action:
+            actions.append(__t)
+    return actions
+
+if __name__ == '__main__':
+    runTest(findActions(globals().values()), EngineTestAppDriver())
