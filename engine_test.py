@@ -156,10 +156,6 @@ class DecrWithDefault(Action):
 
 class EngineTestAppDriver(Driver):
 
-    def endSequence(self, seq):
-        print "}"
-        print ""
-
     def preSuite(self, seq):
         print '#include "suite_stubs.h"'
         print ""
@@ -199,14 +195,18 @@ engine_test_t* get_tests(void) {
     return tests;
 }"""
 
-    def finalState(self, val):
+    def endSequence(self, seq, k, state):
+        val = state.get(k)
         if val:
             print '    checkValue(h, h1, "%s");' % val
         else:
             print '    assertNotExists(h, h1);'
         print "    return SUCCESS;"
+        print "}"
+        print ""
 
-    def endAction(self, action, value, errored):
+    def endAction(self, action, k, state, errored):
+        value = state.get(k)
         if value:
             vs = ' // value is "%s"' % value
         else:

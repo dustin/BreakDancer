@@ -52,6 +52,10 @@ class Action(object):
 class Driver(object):
     """The driver "performs" the test."""
 
+    def newState(self):
+        """Initialize and return the state for a test."""
+        return {}
+
     def preSuite(self, seq):
         """Invoked with the sequence of tests before any are run."""
 
@@ -62,10 +66,10 @@ class Driver(object):
     def startAction(self, action):
         """Invoked when before starting an action."""
 
-    def endAction(self, action, value, errored):
+    def endAction(self, action, k, state, errored):
         """Invoked after the action is performed."""
 
-    def endSequence(self, seq):
+    def endSequence(self, seq, state):
         """Invoked at the end of a sequence of tests."""
 
     def postSuite(self, seq):
@@ -87,7 +91,7 @@ def runTest(actions, driver, duplicates=3, length=4):
     driver.preSuite(tests)
     k = 'testkey'
     for seq in sorted(tests):
-        state = {}
+        state = driver.newState()
         driver.startSequence(seq)
         for a in seq:
             driver.startAction(a)
@@ -95,9 +99,8 @@ def runTest(actions, driver, duplicates=3, length=4):
             if not haserror:
                 a.effect(k, state)
                 haserror = not all(p(k, state) for p in a.postconditions)
-            driver.endAction(a, state.get(k), haserror)
-        driver.finalState(state.get(k))
-        driver.endSequence(seq)
+            driver.endAction(a, k, state, haserror)
+        driver.endSequence(seq, k, state)
     driver.postSuite(tests)
 
 def findActions(classes):
