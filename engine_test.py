@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import testgen
-from testgen import Condition, Effect, Action, Driver
+import breakdancer
+from breakdancer import Condition, Effect, Action, Driver
 
 TESTKEY = 'testkey'
 
@@ -220,5 +220,5 @@ engine_test_t* get_tests(void) {
             print "    assertHasNoError();" + vs
 
 if __name__ == '__main__':
-    testgen.runTest(testgen.findActions(globals().values()),
-                    EngineTestAppDriver())
+    breakdancer.runTest(breakdancer.findActions(globals().values()),
+                        EngineTestAppDriver())

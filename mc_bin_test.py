@@ -5,8 +5,8 @@
 
 import time
 
-import testgen
-from testgen import Condition, Effect, Action, Driver
+import breakdancer
+from breakdancer import Condition, Effect, Action, Driver
 
 import mc_bin_client
 
@@ -131,5 +131,5 @@ class MCDriver(Driver):
         print ['FAIL', 'PASS'][value == inState]
 
 if __name__ == '__main__':
-    testgen.runTest(testgen.findActions(globals().values()),
-                    MCDriver(), 3, 4)
+    breakdancer.runTest(breakdancer.findActions(globals().values()),
+                        MCDriver(), 3, 4)
