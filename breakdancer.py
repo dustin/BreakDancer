@@ -42,6 +42,7 @@ class Action(object):
     preconditions = []
     effect = None
     postconditions = []
+    enabled = True
 
     @property
     def name(self):
@@ -111,6 +112,6 @@ def findActions(classes):
 
     actions = []
     for __t in (t for t in classes if isinstance(type, type(t))):
-        if Action in __t.__mro__ and __t != Action:
+        if Action in __t.__mro__ and __t != Action and __t.enabled:
             actions.append(__t)
     return actions
