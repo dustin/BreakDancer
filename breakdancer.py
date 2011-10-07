@@ -113,8 +113,9 @@ def findActions(classes):
     """Helper function to extract action subclasses from a collection
     of classes."""
 
-    actions = []
-    for __t in (t for t in classes if isinstance(type, type(t))):
-        if Action in __t.__mro__ and __t != Action and __t.enabled:
-            actions.append(__t)
-    return actions
+    def isEnabledAction(t):
+        return (t != Action
+                and isinstance(type, type(t))
+                and issubclass(t, Action) and t.enabled)
+
+    return [t for t in classes if isEnabledAction(t)]
