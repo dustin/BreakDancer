@@ -86,9 +86,12 @@ def runTest(actions, driver, duplicates=3, length=4):
     sequence is.
     """
 
-    instances = itertools.chain(*itertools.repeat([a() for a in actions],
-                                                  duplicates))
-    tests = set(itertools.permutations(instances, length))
+    instances = [a() for a in actions]
+
+    tests = set(itertools.product(*itertools.repeat(instances, length)))
+    rm = set(s for s in tests if max(s.count(i) for i in set(s)) > duplicates)
+    tests -= rm
+
     driver.preSuite(tests)
     for seq in sorted(tests):
         state = driver.newState()
