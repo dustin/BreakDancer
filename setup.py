@@ -5,7 +5,7 @@ setup(
     description='Generate all the tests.',
     version='1.0',
     packages=['breakdancer',],
-    license='Creative Commons Attribution-Noncommercial-Share Alike license',
+    license='MIT License',
     long_description="""BreakDancer thinks of everything so you don't have to.
 
 See my blog post for more info:
